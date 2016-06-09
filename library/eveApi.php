@@ -47,6 +47,31 @@ function makeApiRequest($url)
 }
 
 /**
+ * @param $url
+ * @return mixed|null
+ */
+function makeCrestRequest($path)
+{
+    $url = "https://crest-tq.eveonline.com" . $path;
+    // Initialize a new request for this URL
+    $ch = curl_init($url);
+    // Set the options for this request
+    curl_setopt_array($ch, array(
+        CURLOPT_FOLLOWLOCATION => true, // Yes, we want to follow a redirect
+        CURLOPT_RETURNTRANSFER => true, // Yes, we want that curl_exec returns the fetched data
+        CURLOPT_SSL_VERIFYPEER => false, // Do not verify the SSL certificate
+        CURLOPT_TIMEOUT => 15,
+        CURLOPT_USERAGENT => "Eve-Discord-Bot/fork (eve_crest@chriswf.de)"
+    ));
+    // Fetch the data from the URL
+    $data = curl_exec($ch);
+    // Close the connection
+    curl_close($ch);
+    // Return a new SimpleXMLElement based upon the received data
+    return json_decode($data);
+}
+
+/**
  * @return mixed|null
  
  */

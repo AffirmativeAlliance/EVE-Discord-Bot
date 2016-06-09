@@ -149,8 +149,13 @@ $config["plugins"] = array(
         "allymemberRole" => "", // The name of the role your ALLY members will be assigned too if the auth plugin is active.
         "periodicCheck" => "false", // put "true" or "false", stating you either do or don't want the bot auto removing members who leave corp. If not using auth leave as "false".
         "alertChannel" => "", // if using periodic check put the channel you'd like the bot to log removing users in. (Recommended you don't use an active chat channel)
-        "nameEnforce" => "false", // put "true" or "false", if you'd like to make sure people's name match character names
-        "url" => "" // put a url here if using sso auth too your sso page.
+        "nameEnforce" => "false", // put "true" or "false", if you'd like to make sure people's nicks match character names
+        "addTicker" => "false", // automatically adds the alliance ticker to the name, when enforced
+        "url" => "" // put a url here if  sso auth too your sso page.
+        "customAlliancesA" => array ( "", "" ), // Ids of additionally recognized alliances
+        "customAllianceRoleA" => "" ,  // The name of the role the additional alliance's members will be assigned too if the auth plugin is active.
+	     "customCorpsA" => array ( "98398974" ), // Ids of additionally recognized corporations
+        "customCorpRoleA" => "" // The name of the role the additional corporation's members will be assigned too if the auth plugin is active.
     ),
     //Save fits to be displayed with the !fit command
     "saveFits" => array(

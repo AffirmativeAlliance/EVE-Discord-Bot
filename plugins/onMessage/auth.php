@@ -52,8 +52,13 @@ class auth
     public $forceName;
     public $ssoUrl;
     public $nameEnforce;
+    public $addTicker;
     public $allianceID;
     public $allyroleName;
+    public $customAlliancesA;
+    public $customAllianceRoleA;
+    public $customCorpsA;
+    public $customCorpRoleA;
 
     /**
      * @param $config
@@ -75,7 +80,12 @@ class auth
         $this->roleName = $config["plugins"]["auth"]["corpmemberRole"];
         $this->allyroleName = $config["plugins"]["auth"]["allymemberRole"];
         $this->nameEnforce = $config["plugins"]["auth"]["nameEnforce"];
+        $this->addTicker = $config["plugins"]["auth"]["addTicker"];
         $this->ssoUrl = $config["plugins"]["auth"]["url"];
+        $this->customAlliancesA = $config["plugins"]["auth"]["customAlliancesA"];
+        $this->customAllianceRoleA = $config["plugins"]["auth"]["customAllianceRoleA"];
+        $this->customCorpsA = $config["plugins"]["auth"]["customCorpsA"];
+        $this->customCorpRoleA = $config["plugins"]["auth"]["customCorpRoleA"];
     }
     /**
      *
@@ -101,7 +111,8 @@ class auth
                 $charid = $rows['characterID'];
                 $corpid = $rows['corporationID'];
                 $allianceid = $rows['allianceID'];
-                $url = "https://api.eveonline.com/eve/CharacterName.xml.aspx?ids=$charid";
+                $this->logger->info("CharId $charid, CorpId $corpid, AllyId $allianceid");
+                $url = "https://api.eveonline.com/eve/CharacterAffiliation.xml.aspx?ids=$charid";
                 $xml = makeApiRequest($url);
 
                 // We have an error, show it it
@@ -110,19 +121,36 @@ class auth
                     return null;
                 }
                 elseif ($this->nameEnforce == 'true') {
+                    $guildMember = $this->discord->api("guild")->members()->member($this->guildID, $userID);
+                    $nickName = $guildMember["nick"];
+                    $this->logger->info("User $userName currently has the nickname $nickName");
+                    $changeMemberPath = "/guilds/" . $this->guildID . "/members/" . $userID;
+                    
                     foreach ($xml->result->rowset->row as $character) {
-                        if ($character->attributes()->name != $userName) {
-                            $this->discord->api("channel")->messages()->create($channelID, "**Failure:** Your discord name must match your character name.");
-                            $this->logger->info("User was denied due to not having the correct name " . $character->attributes()->name);
-                            return null;
-
+                        $eveCharacterName = $character->attributes()->characterName;
+                        if($this->addTicker == 'true')
+                        {
+                           $crestResult = makeCrestRequest("/alliances/$allianceid/");
+                           $this->logger->info( print_r($crestResult, true));
+                           $eveCharacterName = $eveCharacterName . " [" . $crestResult->shortName . "]";
+                        }
+                        if ($eveCharacterName != $nickName) {
+                            $this->discord->getHttpClient()->request("PATCH", $changeMemberPath, [
+                                'json' => [
+                                    'nick' => "" . $eveCharacterName
+                                ]
+                            ]);
+                            
+                            $this->logger->info("User nick was changed due to not having the correct name " . $eveCharacterName);
                         }
                     }
                 }
-                $url = "https://api.eveonline.com/eve/CharacterName.xml.aspx?ids=$charid";
+                $url = "https://api.eveonline.com/eve/CharacterAffiliation.xml.aspx?ids=$charid";
                 $xml = makeApiRequest($url);
+                
+                // checking for corp based role
                 foreach ($xml->result->rowset->row as $character) {
-                    $eveName = $character->attributes()->name;
+                    $eveName = $character->attributes()->characterName;
                     if ($corpid == $this->corpID) {
                         $guildData = $this->discord->api("guild")->show($this->guildID);
                         foreach ($guildData["roles"] as $role) {
@@ -138,8 +166,10 @@ class auth
                         }
                     }
                 }
+                
+                // checking for alliance based role
                 foreach ($xml->result->rowset->row as $character) {
-                    $eveName = $character->attributes()->name;
+                    $eveName = $character->attributes()->characterName;
                     if ($allianceid == $this->allianceID) {
                         $guildData = $this->discord->api("guild")->show($this->guildID);
                         foreach ($guildData["roles"] as $role) {
@@ -149,6 +179,44 @@ class auth
                                 insertUser($this->db, $this->dbUser, $this->dbPass, $this->dbName, $userID, $charid, $eveName, 'ally');
                                 disableReg($this->db, $this->dbUser, $this->dbPass, $this->dbName, $code);
                                 $this->discord->api("channel")->messages()->create($channelID, "**Success:** You have now been added to the " . $this->allyroleName . " group. To get more roles, talk to the CEO / Directors");
+                                $this->logger->info("User authed and added to alliance group " . $eveName);
+                                return null;
+                            }
+                        }
+                    }
+                }
+                
+                // checking for custom alliances based role
+                foreach ($xml->result->rowset->row as $character) {
+                    $eveName = $character->attributes()->characterName;
+                    if (in_array($allianceid, $this->customAlliancesA)) {
+                        $guildData = $this->discord->api("guild")->show($this->guildID);
+                        foreach ($guildData["roles"] as $role) {
+                            $roleID = $role["id"];
+                            if ($role["name"] == $this->customAllianceRoleA) {
+                                $this->discord->api("guild")->members()->redeploy($this->guildID, $userID, array($roleID));
+                                insertUser($this->db, $this->dbUser, $this->dbPass, $this->dbName, $userID, $charid, $eveName, 'allyA');
+                                disableReg($this->db, $this->dbUser, $this->dbPass, $this->dbName, $code);
+                                $this->discord->api("channel")->messages()->create($channelID, "**Success:** You have now been added to the " . $this->customAllianceRoleA . " group. To get more roles, talk to the CEO / Directors");
+                                $this->logger->info("User authed and added to alliance group " . $eveName);
+                                return null;
+                            }
+                        }
+                    }
+                }
+                
+                // checking for custom corp based role
+                foreach ($xml->result->rowset->row as $character) {
+                    $eveName = $character->attributes()->characterName;
+                    if (in_array($corpid, $this->customCorpsA)) {
+                        $guildData = $this->discord->api("guild")->show($this->guildID);
+                        foreach ($guildData["roles"] as $role) {
+                            $roleID = $role["id"];
+                            if ($role["name"] == $this->customCorpRoleA) {
+                                $this->discord->api("guild")->members()->redeploy($this->guildID, $userID, array($roleID));
+                                insertUser($this->db, $this->dbUser, $this->dbPass, $this->dbName, $userID, $charid, $eveName, 'corpA');
+                                disableReg($this->db, $this->dbUser, $this->dbPass, $this->dbName, $code);
+                                $this->discord->api("channel")->messages()->create($channelID, "**Success:** You have now been added to the " . $this->customCorpRoleA . " group. To get more roles, talk to the CEO / Directors");
                                 $this->logger->info("User authed and added to alliance group " . $eveName);
                                 return null;
                             }

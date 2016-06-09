@@ -33,6 +33,7 @@ $loop->addPeriodicTimer(1800, function() use ($logger, $discord, $config) {
         $dbName = $config["database"]["database"];
         $guildID = $config["plugins"]["auth"]["guildID"];
         $toDiscordChannel = $config["plugins"]["auth"]["alertChannel"];
+        
         $conn = new mysqli($db, $dbUser, $dbPass, $dbName);
 
         $sql = "SELECT characterID, discordID, eveName FROM authUsers WHERE active='yes'";
@@ -44,15 +45,39 @@ $loop->addPeriodicTimer(1800, function() use ($logger, $discord, $config) {
             while ($rows = $result->fetch_assoc()) {
                 $discordid = $rows['discordID'];
                 $eveName = $rows['eveName'];
+                $charid = $rows['characterID'];
                 $userData = $discord->api('user')->show($discordid);
                 $discordname = $userData['username'];
-                if ($discordname != $eveName) {
-                    $discord->api("guild")->members()->redeploy($guildID, $discordid, "");
-                    $discord->api("channel")->messages()->create($toDiscordChannel, "Discord user " . $discordname . " roles removed via auth because their discord name does not match their in-game name " . $eveName);
-                    $logger->info("Removing user due to name being incorrect " . $discordid);
+                
+                $guildMember = $discord->api("guild")->members()->member($guildID, $discordid);
+                $nickName = $guildMember["nick"];
+                $changeMemberPath = "/guilds/" . $guildID . "/members/" . $discordid;
+                
+                if($this->addTicker == 'true')
+                {
+                   $url = "https://api.eveonline.com/eve/CharacterAffiliation.xml.aspx?ids=$charid";
+                   $xml = makeApiRequest($url);
 
-                    $sql2 = "UPDATE authUsers SET active='no' WHERE discordID='$discordid'";
-                    $result2 = $conn->query($sql2);
+                   if (!$xml->error) {
+                      $allianceId = "";
+                      foreach ($xml->result->rowset->row as $character) {
+                        $allianceId = $character->attributes()->allianceID;
+                      }
+                      if($allianceId != "")
+                      {
+                        $crestResult = makeCrestRequest("/alliances/$allianceId/");
+                        $eveName = $eveName . " [" . $crestResult->shortName . "]";
+                      }
+                   }
+                }
+                if ($discordname != $nickName) {
+                   $discord->getHttpClient()->request("PATCH", $changeMemberPath, [
+                                'json' => [
+                                    'nick' => "" . $eveName
+                                ]
+                            ]);                            
+                    $discord->api("channel")->messages()->create($toDiscordChannel, "Name of Discord user $discordname changed to $eveName to match their in-game name.");
+                    $logger->info("Name of Discord user $discordname changed to $eveName to match their in-game name.");
                 }
 
 
