@@ -28,7 +28,9 @@ function updateCCPData($logger) {
     $ccpDataMD5URL = "https://mambaonline.org/bot/sqlite-latest.sqlite.bz2.md5";
     $databaseDir = __DIR__ . "/../database/";
     $md5 = explode(" ", downloadData($ccpDataMD5URL))[0];
+    $logger->notice("Downloaded MD5: " . $md5);
     $lastSeenMD5 = getPermCache("SluggardCCPDataMD5");
+    $logger->notice("Last seen MD5: " . $lastSeenMD5);    
     if($lastSeenMD5 !== $md5) {
         try {
             $logger->notice("Updating CCP SQLite DB");
@@ -40,19 +42,10 @@ function updateCCPData($logger) {
             }
             $logger->notice("Opening bz2 file");
             $sqliteData = bzopen("{$databaseDir}ccpData.sqlite.bz2", "r");
-            $logger->notice("Reading from bz2 file");
-            $data = "";
-            while(!feof($sqliteData))
-                $data .= bzread($sqliteData, 4096);
-            $logger->notice("Writing bz2 file contents into .sqlite file");
-            file_put_contents("{$databaseDir}/ccpData.sqlite", $data);
-            $logger->notice("Flushing bz2 data from memory");
-            $data = null;
-            $logger->notice("Memory in use: " . memory_get_usage() / 1024 / 1024 . "MB");
-            gc_collect_cycles(); // Collect garbage
-            $logger->notice("Memory in use after garbage collection: " . memory_get_usage() / 1024 / 1024 . "MB");
-            $logger->notice("Deleting bz2 file");
-            unlink("{$databaseDir}/ccpData.sqlite.bz2");
+            
+            $logger->notice("Unpacking bz2 file");
+            exec("bzip2 -d ccpData.sqlite.bz2");
+
             setPermCache("SluggardCCPDataMD5", $md5);
             // Create the mapCelestialsView
             $logger->notice("Creating the mapAllCelestials view");
