@@ -15,6 +15,8 @@ Have a look at the [Wiki for info](https://github.com/shibdib/EVE-Discord-Bot/wi
 Or jump into the [MAMBA Discord](https://discord.gg/0qsFaq4lpZHWX0pB) and ask around for Mr Twinkie
 
 ----------------------------
+<a href="https://codeclimate.com/github/AffirmativeAlliance/EVE-Discord-Bot"><img src="https://codeclimate.com/github/AffirmativeAlliance/EVE-Discord-Bot/badges/gpa.svg" /></a>
+
 The Affirmative alliance version of this bot has several distinct differences from the original bot:
 
 - Nickname=character name is enforced, instead of username=character name
