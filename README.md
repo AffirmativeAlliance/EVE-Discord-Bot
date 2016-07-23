@@ -13,3 +13,12 @@ Have a look at the [Wiki for info](https://github.com/shibdib/EVE-Discord-Bot/wi
 
 
 Or jump into the [MAMBA Discord](https://discord.gg/0qsFaq4lpZHWX0pB) and ask around for Mr Twinkie
+
+----------------------------
+The Affirmative alliance version of this bot has several distinct differences from the original bot:
+
+- Nickname=character name is enforced, instead of username=character name
+- There is now the ability to automatically add alliance ticker to the end of nickname 
+- Multiple alliances can be added to the auth system, instead of just one alliance
+- Several bug fixes and code optimizations have been done.
+ 
